@@ -6,7 +6,7 @@
 
 #define OLED_MOSI 23
 #define OLED_CLK 18
-#define OLED_CS 5
+#define OLED_CS 25
 #define OLED_DC 27
 #define OLED_RESET 14
 
@@ -21,10 +21,13 @@
 const char *WIFI_SSID = "";
 const char *WIFI_PASS = "";
 const char *SERVER_URL = "";
+const char *DISCORD_WEBHOOK_URL = "";
 
 void connectToWifi();
 void updateDisplay();
 void sendMorse();
+void sendPostRequest();
+void sendDiscordWebhook();
 
 Adafruit_SSD1306 display(128, 64, &SPI, OLED_DC, OLED_RESET, OLED_CS);
 
@@ -170,15 +173,20 @@ void sendMorse()
     return;
   }
 
-  Serial.println("Sending morse:");
-  Serial.println(morseBuffer);
+  Serial.println("Sending morse: " + morseBuffer);
 
-  if (strlen(SERVER_URL) == 0)
+  if (WiFi.status() != WL_CONNECTED)
   {
     return;
   }
 
-  if (WiFi.status() != WL_CONNECTED)
+  sendPostRequest();
+  sendDiscordWebhook();
+}
+
+void sendPostRequest()
+{
+  if (strlen(SERVER_URL) == 0)
   {
     return;
   }
@@ -192,12 +200,51 @@ void sendMorse()
 
   if (responseCode > 0)
   {
-    Serial.print("Server response: ");
-    Serial.println(responseCode);
+    if (responseCode == 200)
+    {
+      Serial.println("Morse sent successfully");
+    }
+    else
+    {
+      Serial.println("Failed to send morse: " + String(responseCode));
+    }
   }
   else
   {
-    Serial.println("Failed to send, skipping...");
+    Serial.println("Failed to send morse, skipping...");
+  }
+
+  http.end();
+}
+
+void sendDiscordWebhook()
+{
+  if (strlen(DISCORD_WEBHOOK_URL) == 0)
+  {
+    return;
+  }
+
+  HTTPClient http;
+  http.begin(DISCORD_WEBHOOK_URL);
+  http.addHeader("Content-Type", "application/json");
+
+  String json = "{\"content\":\"" + morseBuffer + "\"}";
+  int responseCode = http.POST(json);
+
+  if (responseCode > 0)
+  {
+    if (responseCode == 204)
+    {
+      Serial.println("Discord message sent successfully");
+    }
+    else
+    {
+      Serial.println("Failed to send Discord message: " + String(responseCode));
+    }
+  }
+  else
+  {
+    Serial.println("Failed to send Discord message, skipping...");
   }
 
   http.end();
