@@ -125,7 +125,9 @@ void loop()
     updateDisplay();
   }
 
-  if (!morsePressed && (now - lastRelease > WORD_PAUSE_MS) && morseBuffer.length() > 0)
+  bool lastCharIsSpace = morseBuffer.length() > 0 && morseBuffer[morseBuffer.length() - 1] == ' ';
+
+  if (!morsePressed && (now - lastRelease > WORD_PAUSE_MS) && morseBuffer.length() > 0 && !lastCharIsSpace)
   {
     morseBuffer += " ";
     lastRelease = now + 999999;
@@ -146,27 +148,38 @@ void loop()
 void updateDisplay()
 {
   display.clearDisplay();
+
+  display.setTextSize(1);
   display.setCursor(0, 0);
   display.println("Morse:");
-  display.setCursor(0, 10);
+  display.drawLine(0, 9, display.width(), 9, SSD1306_WHITE);
+
+  display.setCursor(0, 16);
   display.println(morseBuffer);
+
   display.display();
 }
 
 void sendMorse()
 {
+  morseBuffer.trim();
+
+  if (morseBuffer.length() == 0)
+  {
+    Serial.println("No morse to send");
+    return;
+  }
+
   Serial.println("Sending morse:");
   Serial.println(morseBuffer);
 
   if (strlen(SERVER_URL) == 0)
   {
-    Serial.println("No server URL defined – skipping send");
     return;
   }
 
   if (WiFi.status() != WL_CONNECTED)
   {
-    Serial.println("No WiFi – skipping send");
     return;
   }
 
